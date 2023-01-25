@@ -62,7 +62,7 @@ class LineDrawer:
         new_ax.set(xlim=[0, 829], ylim=[755, 0])
         plt.axis('off')
 
-        new_ax.plot(self.xs, self.ys, color='red', linewidth=2)
+        new_ax.plot(self.xs, self.ys, color='red', linewidth=1)
         plt.savefig('navigation.png', bbox_inches='tight', pad_inches=0, dpi=200)
 
     def __call__(self, event):
