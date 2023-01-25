@@ -63,7 +63,7 @@ class LineDrawer:
         plt.axis('off')
 
         new_ax.plot(self.xs, self.ys, color='red', linewidth=1)
-        plt.savefig('navigation.png', bbox_inches='tight', pad_inches=0, dpi=200)
+        plt.savefig('navigation.png', bbox_inches='tight', pad_inches=0, dpi=2000)
 
     def __call__(self, event):
         # undo last point if [middle button]
