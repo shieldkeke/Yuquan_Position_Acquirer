@@ -10,13 +10,10 @@ cut_range = 10
 
 def cut_navigation(gps, yaw):
     img = Image.open('navigation.png')
-    img = img.resize((829, 755))
-    print(img.width, img.height)
+    img = img.resize((829, 755), Image.ANTIALIAS)
     center_x = int((gps.x-left_up_gps["x"])/(right_down_gps["x"]-left_up_gps["x"]) * (right_down_pic["x"]-left_up_pic["x"]) + left_up_pic["x"])
     center_y = int((gps.y - left_up_gps["y"]) / (right_down_gps["y"] - left_up_gps["y"]) * (right_down_pic["y"] - left_up_pic["y"]) + left_up_pic["y"])
-    print(center_x, center_y)
     img = img.rotate(angle=yaw, center=(center_x, center_y))
-    img.save("after_rotate.png")
     img = img.crop(box=(center_x-cut_range, center_y-cut_range, center_x+cut_range, center_y+cut_range))
     return img
 
