@@ -1,5 +1,6 @@
 
 import matplotlib.pyplot as plt
+from matplotlib.patches import Arc
 from PIL import Image
 
 class LineDrawer:
@@ -54,7 +55,18 @@ class LineDrawer:
         # for point in self.Display_Points:
         #     file.write(f'{point[0]} {point[1]}\n')
         # file.close()
-        
+
+    def draw_navigation(self):
+        plt.clf()
+        new_fig, new_ax = plt.subplots()
+        map = Image.open('map.png')
+        k = 1 # for more thin lines(seem to be useless)
+        new_ax.set(xlim=[0, map.width * k], ylim=[map.height * k, 0]) 
+        plt.axis('off')
+
+        new_ax.plot([x*k for x in self.xs], [y*k for y in self.ys], color='red', linewidth=1)
+        plt.savefig('navigation.png', bbox_inches='tight', pad_inches=0, dpi=4000)# for the high quality of picture
+
     def __call__(self, event):
         # undo last point if [middle button]
         if event.button == 2:
@@ -75,6 +87,9 @@ class LineDrawer:
         if event.button == 3:
             self.save_data((x, y),(event.xdata, event.ydata))
 
+#def cut_navigation(gps, yaw_angle):
+
+
 if __name__ == "__main__":
     img = Image.open('map.png')
     fig, ax = plt.subplots()
@@ -87,7 +102,7 @@ if __name__ == "__main__":
     except:
         l.write_to_file()
 
-    
+    l.draw_navigation()
     
     #457,248 -> 120.129917,30.272621
     #667,669 -> 120.133689,30.266071
