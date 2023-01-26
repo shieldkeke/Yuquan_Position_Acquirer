@@ -59,11 +59,13 @@ class LineDrawer:
     def draw_navigation(self):
         plt.clf()
         new_fig, new_ax = plt.subplots()
-        new_ax.set(xlim=[0, 829], ylim=[755, 0])
+        map = Image.open('map.png')
+        k = 1 # for more thin lines(seem to be useless)
+        new_ax.set(xlim=[0, map.width * k], ylim=[map.height * k, 0]) 
         plt.axis('off')
 
-        new_ax.plot(self.xs, self.ys, color='red', linewidth=1)
-        plt.savefig('navigation.png', bbox_inches='tight', pad_inches=0, dpi=2000)
+        new_ax.plot([x*k for x in self.xs], [y*k for y in self.ys], color='red', linewidth=1)
+        plt.savefig('navigation.png', bbox_inches='tight', pad_inches=0, dpi=4000)# for the high quality of picture
 
     def __call__(self, event):
         # undo last point if [middle button]
