@@ -11,7 +11,7 @@ from PIL import Image
 import matplotlib.pyplot as plt
 import numpy as np
 import math
-import cv2
+# import cv2
 
 
 bridge = CvBridge() 
@@ -28,6 +28,11 @@ right_down_gps = {"x": 120.11863341150001, "y": 30.261879024000002}
 left_up_pic = {"x": 425, "y": 566}
 right_down_pic = {"x": 455, "y": 678}
 
+left_down_gps = {"x": 120.11749962616665, "y": 30.262226684333335}
+right_up_gps = {"x": 120.11923214966667, "y": 30.2632707255}
+left_down_pic = {"x": 387, "y": 652}
+right_up_pic = {"x": 489, "y": 590}
+
 # 120.11923214966667 30.2632707255 489 590 right up
 # 120.11749962616665 30.262226684333335 387 652 left down
 # 120.11863341150001 30.261879024000002 455 678 right down
@@ -42,6 +47,11 @@ class GPSItem:
         
     def data(self):
         return self.x, self.y
+    
+    def dis(self, other):
+        x1, y1 = self.gps2xy_ellipse()
+        x2, y2 = other.gps2xy_ellipse()
+        return math.sqrt((x1-x2)**2 + (y1-y2)**2)
     
     def gps2xy(self): #sphere
         
@@ -170,4 +180,11 @@ class RealDataSaver:
         rospy.spin()
 
 if __name__ == '__main__':
+    # p1 = GPSItem(left_up_gps["x"], left_up_gps["y"])
+    # p2 = GPSItem(right_down_gps["x"], right_down_gps["y"])
+    # p3 = GPSItem(left_down_gps["x"], left_down_gps["y"])
+    # p4 = GPSItem(right_up_gps["x"], right_up_gps["y"])
+
+    # print(p1.dis(p3) + p3.dis(p2) + p2.dis(p4) + p4.dis(p1))
+
     RealDataSaver()
