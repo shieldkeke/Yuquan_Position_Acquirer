@@ -39,41 +39,72 @@ class GPSItem:
         self.y = y
         self.longtitude = x
         self.latitude = y
-    
+        
     def data(self):
         return self.x, self.y
     
-    def gps2xy(self):
+    def gps2xy(self): #sphere
+        
+        # x:north y:east
+        
+        CONSTANTS_RADIUS_OF_EARTH = 6371000
+
+        ref_lon = left_up_gps["x"]
+        ref_lat = left_up_gps["y"]
+        
+        lon = self.x
+        lat = self.y
+
+        lat_rad = math.radians(lat)
+        lon_rad = math.radians(lon)
+        ref_lat_rad = math.radians(ref_lat)
+        ref_lon_rad = math.radians(ref_lon)
+
+        sin_lat = math.sin(lat_rad)
+        cos_lat = math.cos(lat_rad)
+        ref_sin_lat = math.sin(ref_lat_rad)
+        ref_cos_lat = math.cos(ref_lat_rad)
+
+        cos_d_lon = math.cos(lon_rad - ref_lon_rad)
+
+        arg = np.clip(ref_sin_lat * sin_lat + ref_cos_lat * cos_lat * cos_d_lon, -1.0, 1.0)
+        c = math.acos(arg)
+
+        k = 1.0
+        if abs(c) > 0:
+            k = (c / math.sin(c))
+
+        x = float(k * (ref_cos_lat * sin_lat - ref_sin_lat * cos_lat * cos_d_lon) * CONSTANTS_RADIUS_OF_EARTH)
+        y = float(k * cos_lat * math.sin(lon_rad - ref_lon_rad) * CONSTANTS_RADIUS_OF_EARTH)
+
+        return y,x 
     
-        latitude = self.latitude * math.pi/180
-        longtitude = self.longtitude *math.pi/180
+    def gps2xy_ellipse(self): #ellipsoid
 
-        #the radius of the equator
-        radius = 6378137
-        #distance of the two poles
-        distance = 6356752.3142
+        ref_lon = 120.11 * math.pi / 180
+        ref_lat = 30.26 * math.pi / 180
+        lon = self.x * math.pi / 180
+        lat = self.y * math.pi / 180
+        
+        MACRO_AXIS = 6378137
+        MINOR_AXIS = 6356752
+        a = MACRO_AXIS ** 2
+        b = MINOR_AXIS ** 2
+        c = math.tan(ref_lat) ** 2
+        d = (1/math.tan(ref_lat)) ** 2
+        x = a / math.sqrt(a + b*c)
+        y = b / math.sqrt(b + a*d)
+        c = math.tan(lat) ** 2
+        d = (1/math.tan(lat)) ** 2
+        m = a / math.sqrt(a + b*c)
+        n = b / math.sqrt(b + a*d)
 
-        #reference
-        base = 30.26 * math.pi/180
+        y_c = math.sqrt((x - m)**2 + (y - n)**2)
 
-        radius_square = pow(radius,2)
-        distance_square = pow(distance,2)
+        c = math.tan(ref_lat) ** 2
+        x_c = a/math.sqrt(a + b*c) * (lon - ref_lon)
 
-        e = math.sqrt(1 - distance_square/radius_square)
-        e2 = math.sqrt(radius_square/distance_square - 1)
-
-        cosb0 = math.cos(base)
-        N = (radius_square / distance) / math.sqrt( 1+ pow(e2,2)*pow(cosb0,2))
-        K = N*cosb0
-
-        sinb = math.sin(latitude)
-        tanv = math.tan(math.pi/4 + latitude/2)
-        E2 = pow((1 - e*sinb) / (1+ e* sinb),e/2)
-        xx = tanv * E2
-
-        xc = K * math.log(xx)
-        yc = K * longtitude
-        return xc,yc
+        return x_c, y_c
 
 class RealDataSaver:
 
@@ -96,14 +127,14 @@ class RealDataSaver:
         pass
     
     def draw_nav(self, gps): #draw global nav img
-        
+
         # x_gps, y_gps = gps.data()
         # left_up_x, left_up_y = self.gps_left_up.data()
         # right_down_x, right_down_y = self.gps_right_down.data()
 
-        x_gps, y_gps = gps.gps2xy()
-        left_up_x, left_up_y = self.gps_left_up.gps2xy()
-        right_down_x, right_down_y = self.gps_right_down.gps2xy()
+        x_gps, y_gps = gps.gps2xy_ellipse()
+        left_up_x, left_up_y = self.gps_left_up.gps2xy_ellipse()
+        right_down_x, right_down_y = self.gps_right_down.gps2xy_ellipse()
 
         center_x = int((x_gps - left_up_x) / (right_down_x - left_up_x) * (right_down_pic["x"] - left_up_pic["x"]) + left_up_pic["x"])
         center_y = int((y_gps - left_up_y) / (right_down_y - left_up_y) * (right_down_pic["y"] - left_up_pic["y"]) + left_up_pic["y"])
