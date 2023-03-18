@@ -18,10 +18,15 @@ class LineDrawer:
         self.SHOW_LINE = True
         self.READ_FROM_LAST = False
 
-        self.left_up_gps = {"x":120.129917,"y":30.272621}
-        self.right_down_gps = {"x":120.133689,"y":30.266071}
-        self.left_up_pic = {"x":457,"y":248}
-        self.right_down_pic = {"x":667,"y":669}
+        self.left_up_gps = {"x": 120.11807369666667, "y": 30.263599648333336}
+        self.right_down_gps = {"x": 120.11863341150001, "y": 30.261879024000002}
+        self.left_up_pic = {"x": 425, "y": 566}
+        self.right_down_pic = {"x": 455, "y": 678}
+
+        self.left_down_gps = {"x": 120.11749962616665, "y": 30.262226684333335}
+        self.right_up_gps = {"x": 120.11923214966667, "y": 30.2632707255}
+        self.left_down_pic = {"x": 387, "y": 652}
+        self.right_up_pic = {"x": 489, "y": 590}
 
         self.callback = line.figure.canvas.mpl_connect('button_press_event', self)
 
