@@ -70,7 +70,7 @@ class LineDrawer:
         plt.axis('off')
 
         new_ax.plot([x*k for x in self.xs], [y*k for y in self.ys], color='red', linewidth=1)
-        plt.savefig('navigation.png', bbox_inches='tight', pad_inches=0, dpi=3000)# for the high quality of picture
+        plt.savefig('navigation.png', bbox_inches='tight', pad_inches=0, dpi=500)# for the high quality of picture
         print("navigation saved successfully!")
 
     def __call__(self, event):

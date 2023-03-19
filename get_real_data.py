@@ -181,7 +181,7 @@ class RealDataSaver:
 
     def save_data(self):
         self.cnt_close += 1
-        if self.cnt_close == 10:
+        if self.cnt_close == 500:
             self.close()
         index = str(self.global_time)
         cv2.imwrite(self.save_path+'img/'+index+'.png', self.global_img)
@@ -201,7 +201,7 @@ class RealDataSaver:
                     str(self.global_vel[2])+'\t'+'\n')
         
     def draw_nav(self, gps): #draw global nav img
-
+        
         # x_gps, y_gps = gps.data()
         # left_up_x, left_up_y = self.gps_left_up.data()
         # right_down_x, right_down_y = self.gps_right_down.data()
@@ -229,7 +229,7 @@ class RealDataSaver:
         center_x = center_x * self.nav.width / self.map.width
         center_y = center_y * self.nav.height/ self.map.height
         img = copy.deepcopy(self.nav)
-        img = img.rotate(angle=math.degrees(self.global_pos[2]), center=(center_x, center_y))
+        img = img.rotate(angle=90 - math.degrees(self.global_pos[2]), center=(center_x, center_y))
         
         cut_len = 20 # we cut +-20meters
         cut_range =  cut_len * (math.sqrt((right_down_pic["x"] - left_up_pic["x"])**2 + (right_down_pic["y"] - left_up_pic["y"])**2)/(self.gps_right_down.dis(self.gps_left_up))) #20 meters * (pixels per meter in "map.png")
