@@ -1,5 +1,11 @@
 import numpy as np
 import cv2
+import os
+from kf import KalmanFilter
+
+# kf
+global filter
+filter = None
 
 # figure size
 width = 1280
@@ -142,6 +148,7 @@ def getLinearPose(pose1, pose2, min_dist):
 
 
 def open_pos(path):
+    global filter
     pos_file = open(path, "r")
     traj = []
     t = []
@@ -150,7 +157,12 @@ def open_pos(path):
         if not line:
             break
         line = line.split()
-        pose = Pose(eval(line[1]), eval(line[2]), eval(line[3]))
+        if filter==None:
+            filter = KalmanFilter([eval(line[2]), eval(line[3]),0,0])
+        # x, y = filter.update(eval(line[1]), eval(line[2]))
+        x, y = eval(line[1]), eval(line[2])
+        # print(x, y, eval(line[1]), eval(line[2]))
+        pose = Pose(x , y, eval(line[3]))
         traj.append(pose)
         t.append(line[0])
     return t, traj
@@ -186,20 +198,21 @@ def getPM(traj):
     kernel = np.ones((6, 6), np.uint8)
     img = cv2.dilate(img, kernel, iterations=1)
     img = cv2.erode(img, kernel, iterations=1)
-    img = cv2.resize(img, (width // 2, height // 2), interpolation=cv2.INTER_CUBIC)
-    img = cv2.resize(img, (width, height), interpolation=cv2.INTER_CUBIC)
+    # img = cv2.blur(img, (5,5))
+    # img = cv2.resize(img, (width, height), interpolation=cv2.INTER_CUBIC)
     return img
 
+def mkdir(path):
+    os.makedirs(path, exist_ok=True)
 
 if __name__ == '__main__':
     file_path = "pos.txt"
     t, traj = open_pos(file_path)
-
+    mkdir("pm")
     for i in range(len(t)):
         path = cut_traj(i, traj)
         path = world2car(path[0], path[1:])
 
         path = data_augmentation(path)
         img = getPM(path)
-
         cv2.imwrite('pm\\'+ t[i] + '.png', img)
