@@ -218,6 +218,8 @@ class RealDataSaver:
         line.figure.canvas.draw()
    
     def get_nav(self, gps):
+
+
         x_gps, y_gps = gps.gps2xy_ellipse()
         left_up_x, left_up_y = self.gps_left_up.gps2xy_ellipse()
         right_down_x, right_down_y = self.gps_right_down.gps2xy_ellipse()
