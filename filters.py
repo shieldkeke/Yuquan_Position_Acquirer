@@ -19,7 +19,6 @@ class KalmanFilter:
         x, y = updated[0], updated[1]
         return x, y
     
-    
 if __name__ == "__main__":
     kf = KalmanFilter([2,8,0,0])
     print(kf.update(2,8))

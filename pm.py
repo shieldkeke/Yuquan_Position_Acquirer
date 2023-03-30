@@ -1,10 +1,17 @@
 import numpy as np
 import cv2
 import os
-from kf import KalmanFilter
+from filters import KalmanFilter
+import scipy.signal
 
-# kf
-global filter
+# filter
+global filter, filter_mode
+NOFILTER = 0
+KALMAN = 1
+SG = 2
+filter_mode = SG
+
+#init
 filter = None
 
 # figure size
@@ -117,11 +124,11 @@ def data_augmentation(traj):
         p2 = traj[i+1]
         # the min_dist is changed for points near the car is sparser
         if i / len(traj) < 0.4:
-            min_dist = 0.008
+            min_dist = 0.005
         elif i / len(traj) < 0.6:
-            min_dist = 0.016
+            min_dist = 0.01
         else:
-            min_dist = 0.04
+            min_dist = 0.02
         _result_list = getLinearPose(p1, p2, min_dist)
         result_list.extend(_result_list)
 
@@ -152,19 +159,40 @@ def open_pos(path):
     pos_file = open(path, "r")
     traj = []
     t = []
+    xs = []
+    ys = []
+    yaws = []
     while True:
         line = pos_file.readline()
         if not line:
             break
         line = line.split()
-        if filter==None:
+
+        if filter_mode==KALMAN and filter==None:
             filter = KalmanFilter([eval(line[2]), eval(line[3]),0,0])
-        # x, y = filter.update(eval(line[1]), eval(line[2]))
-        x, y = eval(line[1]), eval(line[2])
-        # print(x, y, eval(line[1]), eval(line[2]))
-        pose = Pose(x , y, eval(line[3]))
-        traj.append(pose)
+
+        if filter_mode==KALMAN:
+            x, y = filter.update(eval(line[1]), eval(line[2]))
+        else:
+            x, y = eval(line[1]), eval(line[2])
+
+        if filter_mode==SG:
+            xs.append(x)
+            ys.append(y)
+            yaws.append(eval(line[3]))
+        else:
+            pose = Pose(x , y, eval(line[3]))
+            traj.append(pose)
+
         t.append(line[0])
+    
+    if filter_mode==SG:
+        x_hat = scipy.signal.savgol_filter(xs, 6, 4)
+        y_hat = scipy.signal.savgol_filter(ys, 6, 4)
+        yaw_hat = scipy.signal.savgol_filter(yaws, 6, 4)
+        for i in range(len(x_hat)):
+            traj.append(Pose(x_hat[i], y_hat[i], yaw_hat[i]))
+
     return t, traj
 
 # the line is from the left side of the car to the right side
@@ -195,7 +223,7 @@ def getPM(traj):
         drawLineInImage(point, img)
 
     # make the img indistinct
-    kernel = np.ones((6, 6), np.uint8)
+    kernel = np.ones((5, 5), np.uint8)
     img = cv2.dilate(img, kernel, iterations=1)
     img = cv2.erode(img, kernel, iterations=1)
     # img = cv2.blur(img, (5,5))
@@ -212,7 +240,6 @@ if __name__ == '__main__':
     for i in range(len(t)):
         path = cut_traj(i, traj)
         path = world2car(path[0], path[1:])
-
         path = data_augmentation(path)
         img = getPM(path)
         cv2.imwrite('pm\\'+ t[i] + '.png', img)
