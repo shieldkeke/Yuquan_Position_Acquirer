@@ -1,18 +1,20 @@
 import numpy as np
 import cv2
 import os
-from filters import KalmanFilter
+from filters import KalmanFilter, KalmanFilter_W
 import scipy.signal
 
 # filter
-global filter, filter_mode
+global filter, filter_mode, filter_w, last_yaw
 NOFILTER = 0
 KALMAN = 1
 SG = 2
-filter_mode = SG
+filter_mode = KALMAN
 
 #init
 filter = None
+filter_w = None
+last_yaw = None
 
 # figure size
 width = 1280
@@ -155,7 +157,7 @@ def getLinearPose(pose1, pose2, min_dist):
 
 
 def open_pos(path):
-    global filter
+    global filter, filter_mode, filter_w, last_yaw
     pos_file = open(path, "r")
     traj = []
     t = []
@@ -167,21 +169,28 @@ def open_pos(path):
         if not line:
             break
         line = line.split()
+        
+        if not filter_mode == NOFILTER:
+            if last_yaw and abs(eval(line[3])- last_yaw) > 0.2:
+                continue
+            last_yaw = eval(line[3])
 
         if filter_mode==KALMAN and filter==None:
-            filter = KalmanFilter([eval(line[2]), eval(line[3]),0,0])
+            filter = KalmanFilter([eval(line[1]), eval(line[2]),0,0])
+            filter_w = KalmanFilter_W([eval(line[3]), 0])
 
         if filter_mode==KALMAN:
             x, y = filter.update(eval(line[1]), eval(line[2]))
+            yaw = filter_w.update(eval(line[3]))
         else:
-            x, y = eval(line[1]), eval(line[2])
+            x, y, yaw = eval(line[1]), eval(line[2]), eval(line[3])
 
         if filter_mode==SG:
             xs.append(x)
             ys.append(y)
             yaws.append(eval(line[3]))
         else:
-            pose = Pose(x , y, eval(line[3]))
+            pose = Pose(x, y, yaw)
             traj.append(pose)
 
         t.append(line[0])
@@ -236,10 +245,11 @@ def mkdir(path):
 if __name__ == '__main__':
     file_path = "pos.txt"
     t, traj = open_pos(file_path)
-    mkdir("pm")
+    save_path="/home/chenyeke/srtp/data/"
+    mkdir(save_path + "pm")
     for i in range(len(t)):
         path = cut_traj(i, traj)
         path = world2car(path[0], path[1:])
         path = data_augmentation(path)
         img = getPM(path)
-        cv2.imwrite('pm\\'+ t[i] + '.png', img)
+        cv2.imwrite(save_path + 'pm/'+ t[i] + '.png', img)
