@@ -170,25 +170,26 @@ def open_pos(path):
             break
         line = line.split()
         
+        yaw_raw = eval(line[3])
         if not filter_mode == NOFILTER:
             if last_yaw and abs(eval(line[3])- last_yaw) > 0.2:
-                continue
-            last_yaw = eval(line[3])
+                yaw_raw = last_yaw
+            last_yaw = yaw_raw
 
         if filter_mode==KALMAN and filter==None:
             filter = KalmanFilter([eval(line[1]), eval(line[2]),0,0])
-            filter_w = KalmanFilter_W([eval(line[3]), 0])
+            filter_w = KalmanFilter_W([yaw_raw, 0])
 
         if filter_mode==KALMAN:
             x, y = filter.update(eval(line[1]), eval(line[2]))
-            yaw = filter_w.update(eval(line[3]))
+            yaw = filter_w.update(yaw_raw)
         else:
-            x, y, yaw = eval(line[1]), eval(line[2]), eval(line[3])
+            x, y, yaw = eval(line[1]), eval(line[2]), yaw_raw
 
         if filter_mode==SG:
             xs.append(x)
             ys.append(y)
-            yaws.append(eval(line[3]))
+            yaws.append(yaw_raw)
         else:
             pose = Pose(x, y, yaw)
             traj.append(pose)
