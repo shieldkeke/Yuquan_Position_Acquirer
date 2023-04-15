@@ -1,5 +1,20 @@
 import numpy as np
 import cv2
+import os
+from filters import KalmanFilter, KalmanFilter_W
+import scipy.signal
+
+# filter
+global filter, filter_mode, filter_w, last_yaw
+NOFILTER = 0
+KALMAN = 1
+SG = 2
+filter_mode = KALMAN
+
+#init
+filter = None
+filter_w = None
+last_yaw = None
 
 # figure size
 width = 1280
@@ -111,11 +126,11 @@ def data_augmentation(traj):
         p2 = traj[i+1]
         # the min_dist is changed for points near the car is sparser
         if i / len(traj) < 0.4:
-            min_dist = 0.008
+            min_dist = 0.005
         elif i / len(traj) < 0.6:
-            min_dist = 0.016
+            min_dist = 0.01
         else:
-            min_dist = 0.04
+            min_dist = 0.02
         _result_list = getLinearPose(p1, p2, min_dist)
         result_list.extend(_result_list)
 
@@ -142,17 +157,52 @@ def getLinearPose(pose1, pose2, min_dist):
 
 
 def open_pos(path):
+    global filter, filter_mode, filter_w, last_yaw
     pos_file = open(path, "r")
     traj = []
     t = []
+    xs = []
+    ys = []
+    yaws = []
     while True:
         line = pos_file.readline()
         if not line:
             break
         line = line.split()
-        pose = Pose(eval(line[1]), eval(line[2]), eval(line[3]))
-        traj.append(pose)
+        
+        yaw_raw = eval(line[3])
+        if not filter_mode == NOFILTER:
+            if last_yaw and abs(eval(line[3])- last_yaw) > 0.2:
+                yaw_raw = last_yaw
+            last_yaw = yaw_raw
+
+        if filter_mode==KALMAN and filter==None:
+            filter = KalmanFilter([eval(line[1]), eval(line[2]),0,0])
+            filter_w = KalmanFilter_W([yaw_raw, 0])
+
+        if filter_mode==KALMAN:
+            x, y = filter.update(eval(line[1]), eval(line[2]))
+            yaw = filter_w.update(yaw_raw)
+        else:
+            x, y, yaw = eval(line[1]), eval(line[2]), yaw_raw
+
+        if filter_mode==SG:
+            xs.append(x)
+            ys.append(y)
+            yaws.append(yaw_raw)
+        else:
+            pose = Pose(x, y, yaw)
+            traj.append(pose)
+
         t.append(line[0])
+    
+    if filter_mode==SG:
+        x_hat = scipy.signal.savgol_filter(xs, 6, 4)
+        y_hat = scipy.signal.savgol_filter(ys, 6, 4)
+        yaw_hat = scipy.signal.savgol_filter(yaws, 6, 4)
+        for i in range(len(x_hat)):
+            traj.append(Pose(x_hat[i], y_hat[i], yaw_hat[i]))
+
     return t, traj
 
 # the line is from the left side of the car to the right side
@@ -183,23 +233,24 @@ def getPM(traj):
         drawLineInImage(point, img)
 
     # make the img indistinct
-    kernel = np.ones((6, 6), np.uint8)
+    kernel = np.ones((5, 5), np.uint8)
     img = cv2.dilate(img, kernel, iterations=1)
     img = cv2.erode(img, kernel, iterations=1)
-    img = cv2.resize(img, (width // 2, height // 2), interpolation=cv2.INTER_CUBIC)
-    img = cv2.resize(img, (width, height), interpolation=cv2.INTER_CUBIC)
+    # img = cv2.blur(img, (5,5))
+    # img = cv2.resize(img, (width, height), interpolation=cv2.INTER_CUBIC)
     return img
 
+def mkdir(path):
+    os.makedirs(path, exist_ok=True)
 
 if __name__ == '__main__':
     file_path = "pos.txt"
     t, traj = open_pos(file_path)
-
+    save_path="/home/chenyeke/srtp/data/"
+    mkdir(save_path + "pm")
     for i in range(len(t)):
         path = cut_traj(i, traj)
         path = world2car(path[0], path[1:])
-
         path = data_augmentation(path)
         img = getPM(path)
-
-        cv2.imwrite('pm\\'+ t[i] + '.png', img)
+        cv2.imwrite(save_path + 'pm/'+ t[i] + '.png', img)
