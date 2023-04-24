@@ -246,7 +246,7 @@ def mkdir(path):
 if __name__ == '__main__':
     file_path = "pos.txt"
     t, traj = open_pos(file_path)
-    save_path="/home/chenyeke/srtp/data/"
+    save_path="C:/Users/13910/Desktop/Yuquan_Position_Acquirer-master/"
     mkdir(save_path + "pm")
     for i in range(len(t)):
         path = cut_traj(i, traj)
