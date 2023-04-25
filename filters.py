@@ -43,7 +43,8 @@ class KalmanFilter_W:
         predicted = self.kf.predict()
         yaw_pre = predicted[0][0]
         yaw = updated[0][0]
-        return yaw
+        return yaw, yaw_pre
+    
     
 if __name__ == "__main__":
     kf = KalmanFilter([2,8,0,0])

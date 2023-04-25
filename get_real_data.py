@@ -133,6 +133,7 @@ class RealDataSaver:
         self.global_pos = [0, 0, 0] # x, y, yaw
         self.global_vel = [0, 0, 0] # x, y, angle_vel
         self.global_acc = [0, 0, 0] #x, y
+        self.global_gps = [0, 0] #lat, lon
         self.time = 0
         self.gps_right_down = GPSItem(right_down_gps["x"], right_down_gps["y"])
         self.gps_left_up = GPSItem(left_up_gps["x"], left_up_gps["y"])
@@ -149,7 +150,14 @@ class RealDataSaver:
         self.vel_file = open(save_path+'state/vel.txt', 'w+')
         self.acc_file = open(save_path+'state/acc.txt', 'w+')
         self.angular_vel_file = open(save_path+'state/angular_vel.txt', 'w+')
+        self.gps_file = open(save_path+'state/gps.txt', 'w+')
         self.cnt_close = 0
+        self.saving = False
+        self.gps_flag = False
+        self.img_flag = False
+        self.state_flag = False
+        self.lidar_flag = False
+
         try:
             self.listener()
         except:
@@ -180,13 +188,21 @@ class RealDataSaver:
         os.makedirs(self.save_path+path, exist_ok=True)
 
     def save_data(self):
+        # print("### saving data... ###")
+        # lock the thread to avoid data conflict
+        self.saving = True
         self.cnt_close += 1
-        if self.cnt_close == 500:
-            self.close()
-        index = str(self.global_time)
+        # if self.cnt_close == 500:
+        #     self.close()
+        index = f"{self.global_time:.7f}"
         cv2.imwrite(self.save_path+'img/'+index+'.png', self.global_img)
-        self.global_nav.save(self.save_path+'nav/'+index+'.png')
-        np.save(self.save_path+'pcd/'+str(self.global_time)+'.npy', self.global_scan)
+        # self.global_nav.save(self.save_path+'nav/'+index+'.png')
+        np.save(self.save_path+'pcd/'+index+'.npy', self.global_scan)
+        
+        self.gps_file.write(index+'\t'+
+                    str(self.global_gps[0])+'\t'+
+                    str(self.global_gps[1])+'\t'+'\n')
+
         self.pos_file.write(index+'\t'+
                    str(self.global_pos[0])+'\t'+ # x
                    str(self.global_pos[1])+'\t'+ # y
@@ -199,7 +215,17 @@ class RealDataSaver:
                     str(self.global_acc[1])+'\t'+'\n')
         self.angular_vel_file.write(index+'\t'+
                     str(self.global_vel[2])+'\t'+'\n')
-        
+        # print("### data saved ###")
+        self.saving = False
+        self.img_flag = False
+        self.state_flag = False
+        self.lidar_flag = False
+        self.gps_flag = False
+
+    def check(self):
+        if self.img_flag and self.state_flag and self.lidar_flag and self.gps_flag:
+            self.save_data()
+
     def draw_nav(self, gps): #draw global nav img
         
         # x_gps, y_gps = gps.data()
@@ -248,33 +274,52 @@ class RealDataSaver:
         self.global_time = float(data.header.stamp.secs) + float(data.header.stamp.nsecs)/1000000000
 
     def gps_callback(self, data):
+        if self.saving:
+            return
+        self.gps_flag = True
+        # print("gps_callback")
         gps = GPSItem(data.longitude, data.latitude)
-        # self.draw_nav(gps)
         global_x, global_y = gps.gps2xy_ellipse() # world coordinate
         dx = global_x - self.global_pos[0]
         dy = global_y - self.global_pos[1]
         global_yaw = math.atan2(dy, dx)
         self.global_pos = [global_x, global_y, global_yaw]
         self.get_time(data)
-        self.get_nav(gps)
-        self.save_data()
+        # self.get_nav(gps)
+        self.global_gps = [data.longitude, data.latitude]
+        self.check()
     
     def lidar_callback(self, data):
+        if self.saving:
+            return
+        self.lidar_flag = True
+        # print("lidar_callback")
         pc = pc2.read_points(data, field_names=("x", "y", "z"), skip_nans=True)
         self.global_scan = np.array(list(pc))
+        # self.check()
 
     def status_callback(self, data):
         # because our car is Four-wheel differentia
+        if self.saving:
+            return
+        self.state_flag = True
+        # print("status_callback")
         vel = data.linear_velocity
         self.global_acc[0] = vel * math.cos(self.global_pos[2]) - self.global_vel[0]
         self.global_acc[1] = vel * math.sin(self.global_pos[2]) - self.global_vel[1]
         self.global_vel[0] = vel * math.cos(self.global_pos[2]) # yaw
         self.global_vel[1] = vel * math.sin(self.global_pos[2])
         self.global_vel[2] = data.angular_velocity
-        
-    def img_callback(self, data):
-        self.global_img = self.bridge.imgmsg_to_cv2(data, "bgr8")
+        # self.check()
 
+    def img_callback(self, data):
+        if self.saving:
+            return
+        self.img_flag = True
+        # print("img_callback")
+        self.global_img = self.bridge.imgmsg_to_cv2(data, "bgr8")
+        self.check()
+        
     def listener(self):
         rospy.init_node('listener', anonymous=True)
         rospy.Subscriber("jzhw/gps/fix", GPSFix, self.gps_callback)
@@ -296,4 +341,4 @@ if __name__ == '__main__':
     # p4 = GPSItem(right_up_gps["x"], right_up_gps["y"])
     # print(p1.dis(p3) + p3.dis(p2) + p2.dis(p4) + p4.dis(p1))
     
-    RealDataSaver()
+    RealDataSaver("../data/")
