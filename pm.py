@@ -3,13 +3,14 @@ import cv2
 import os
 from filters import KalmanFilter, KalmanFilter_W
 import scipy.signal
+from tqdm import tqdm
 
 # filter
 global filter, filter_mode, filter_w, last_yaw
 NOFILTER = 0
 KALMAN = 1
 SG = 2
-filter_mode = KALMAN
+filter_mode = SG
 
 #init
 filter = None
@@ -164,6 +165,7 @@ def open_pos(path):
     xs = []
     ys = []
     yaws = []
+    yaw_pre = 0
     while True:
         line = pos_file.readline()
         if not line:
@@ -171,9 +173,14 @@ def open_pos(path):
         line = line.split()
         
         yaw_raw = eval(line[3])
-        if not filter_mode == NOFILTER:
-            if last_yaw and abs(eval(line[3])- last_yaw) > 0.2:
-                yaw_raw = last_yaw
+        # if not filter_mode == NOFILTER:
+        if True:
+            if last_yaw and abs(yaw_raw- last_yaw) > 0.1:
+                k = 0.1
+                yaw_raw = k * yaw_raw + (1-k) * last_yaw
+                last_yaw = yaw_raw
+                # yaw_raw = yaw_pre
+    
             last_yaw = yaw_raw
 
         if filter_mode==KALMAN and filter==None:
@@ -182,7 +189,7 @@ def open_pos(path):
 
         if filter_mode==KALMAN:
             x, y = filter.update(eval(line[1]), eval(line[2]))
-            yaw = filter_w.update(yaw_raw)
+            yaw, yaw_pre = filter_w.update(yaw_raw)
         else:
             x, y, yaw = eval(line[1]), eval(line[2]), yaw_raw
 
@@ -244,11 +251,13 @@ def mkdir(path):
     os.makedirs(path, exist_ok=True)
 
 if __name__ == '__main__':
-    file_path = "pos.txt"
+    save_path="../data1/"
+    file_path = save_path + "state/pos.txt"
     t, traj = open_pos(file_path)
-    save_path="C:/Users/13910/Desktop/Yuquan_Position_Acquirer-master/"
     mkdir(save_path + "pm")
-    for i in range(len(t)):
+    # for i in range(len(t)):
+    # with tqdm
+    for i in tqdm(range(len(t))):
         path = cut_traj(i, traj)
         path = world2car(path[0], path[1:])
         path = data_augmentation(path)
