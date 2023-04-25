@@ -10,7 +10,7 @@ import copy
 from tqdm import tqdm
 
 ### if we draw global nav to vertify our gps module and data
-img = Image.open('../map.png')
+img = Image.open('map.png')
 fig, ax = plt.subplots()
 line, = ax.plot([], [])  # empty line
 point, = ax.plot([], [], 'bo')
@@ -117,14 +117,14 @@ class GPSItem:
 
 class RealDataSaver:
 
-    def __init__(self, save_path="C:/Users/13910/Desktop/Yuquan_Position_Acquirer-master/gyzt_try") -> None:
+    def __init__(self, save_path) -> None:
         self.global_nav = []
 
         self.gps_right_down = GPSItem(right_down_gps["x"], right_down_gps["y"])
         self.gps_left_up = GPSItem(left_up_gps["x"], left_up_gps["y"])
         self.save_path = save_path
-        self.nav = Image.open('../navigation.png')
-        self.map = Image.open('../map.png')
+        self.nav = Image.open('navigation.png')
+        self.map = Image.open('map.png')
         self.cnt_close = 0
         self.global_pos = [0, 0, 0]
 
@@ -204,15 +204,14 @@ def open_file(path):
             break
         line = line.split()
         t = GPSItem(eval(line[1]), eval(line[2]))
-        traj.append(t)
-    return traj
+        traj.append((line[0],t))
+    return  traj
 
 if __name__ == '__main__':
     # test for GPS module
-    saver = RealDataSaver()
-    traj = open_file("C:/Users/13910/Desktop/Yuquan_Position_Acquirer-master/gps.txt")
-    j = 0
-    for i in tqdm(traj):
-        img = saver.gps_callback(i)
-        img.save("C:/Users/13910/Desktop/Yuquan_Position_Acquirer-master/nav_img/"+str(j)+".png")
-        j = j+1
+    path = "../data1/"
+    saver = RealDataSaver(path)
+    traj = open_file(path+"state/gps.txt")
+    for item in tqdm(traj):
+        img = saver.gps_callback(item[1])
+        img.save(path+"nav/"+item[0]+".png")

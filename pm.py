@@ -4,18 +4,19 @@ import os
 from filters import KalmanFilter, KalmanFilter_W
 import scipy.signal
 from tqdm import tqdm
-
+from debugger import Debugger
 # filter
 global filter, filter_mode, filter_w, last_yaw
 NOFILTER = 0
 KALMAN = 1
 SG = 2
-filter_mode = SG
+filter_mode = KALMAN
 
 #init
 filter = None
 filter_w = None
 last_yaw = None
+de = None
 
 # figure size
 width = 1280
@@ -53,6 +54,7 @@ rotationMat = np.dot(rotationMat, roll_rotationMat)
 rotationMat = np.linalg.inv(rotationMat)
 # print(f"rotation: {rotationMat}")
 translationMat = np.array([0., 1.3, 0.])
+
 
 # limit theta to be in -np.pi to np.pi
 def pi2pi(theta, theta0=0.0):
@@ -175,8 +177,8 @@ def open_pos(path):
         yaw_raw = eval(line[3])
         # if not filter_mode == NOFILTER:
         if True:
-            if last_yaw and abs(yaw_raw- last_yaw) > 0.1:
-                k = 0.1
+            if last_yaw and abs(yaw_raw- last_yaw) > 0.25:
+                k = 0.05
                 yaw_raw = k * yaw_raw + (1-k) * last_yaw
                 last_yaw = yaw_raw
                 # yaw_raw = yaw_pre
@@ -219,17 +221,24 @@ def drawLineInImage(car_pos, img):
     start_vec = np.array([np.cos(theta)*half_vehicle_width, np.sin(theta)*half_vehicle_width]) + car_vec
     theta = car_pos.yaw - np.pi/2
     end_vec = np.array([np.cos(theta) * half_vehicle_width, np.sin(theta) * half_vehicle_width]) + car_vec
-    start = Pose(start_vec[0], start_vec[1], 0)
-    end = Pose(end_vec[0], end_vec[1], 0)
-    start = car2camera(start)
-    end = car2camera(end)
-
+    start_0 = Pose(start_vec[0], start_vec[1], 0)
+    end_0 = Pose(end_vec[0], end_vec[1], 0)
+    start = car2camera(start_0)
+    end = car2camera(end_0)
+    # de.print(["#yaw#",car_pos.yaw,"#car point#",car_pos.x, car_pos.y ,"#car#",start_0.x, start_0.y, end_0.x, end_0.y, "#camera#",start[0], start[1], end[0], end[1]])
     # for those whose start point is out of sight while the end point is not, draw a part of them
-    if (start[0]>width and end[0]>width) or (start[1]>height and end[1]>height) or (start[0]<0 and end[0]<0) or (start[1]<0 and end[1]<0):
+    
+    #tolerance
+    bound = 500
+    if start[0] > width + bound or start[0] < -bound or start[1] > height + bound or start[1] < -bound or end[0] > width + bound or end[0] < -bound or end[1] > height + bound or end[1] < -bound:
         return
-    else:
-        start = (limit(start[0], 0, width), limit(start[1], 0, height))
-        end = (limit(end[0], 0, width), limit(end[1], 0, height))
+
+    # if (start[0]>width and end[0]>width) or (start[1]>height and end[1]>height) or (start[0]<0 and end[0]<0) or (start[1]<0 and end[1]<0):
+    #     return
+    # else:
+
+    start = (limit(start[0], 0, width), limit(start[1], 0, height))
+    end = (limit(end[0], 0, width), limit(end[1], 0, height))
 
     cv2.line(img, start, end, (255, 255, 255), thickness=2)
 
@@ -251,15 +260,22 @@ def mkdir(path):
     os.makedirs(path, exist_ok=True)
 
 if __name__ == '__main__':
+    # width_new=400
+    # height_new=200
     save_path="../data1/"
     file_path = save_path + "state/pos.txt"
     t, traj = open_pos(file_path)
     mkdir(save_path + "pm")
+    mkdir(save_path + "debug")
+    de = Debugger(save_path + "debug/" + "pm_debug.txt")
     # for i in range(len(t)):
     # with tqdm
     for i in tqdm(range(len(t))):
+        # if t[i] == "1681196906.4866233":
+        # if t[i] == "1681196891.3861036":
         path = cut_traj(i, traj)
         path = world2car(path[0], path[1:])
         path = data_augmentation(path)
         img = getPM(path)
+        # img = cv2.resize(img, (width_new, height_new))
         cv2.imwrite(save_path + 'pm/'+ t[i] + '.png', img)
