@@ -2,7 +2,7 @@
 import rospy
 from gps_common.msg import GPSFix
 from sensor_msgs.msg import Image as Img
-from sensor_msgs.msg import PointCloud2
+from sensor_msgs.msg import PointCloud2, Imu
 from scout_msgs.msg import ScoutStatus
 import sensor_msgs.point_cloud2 as pc2
 from cv_bridge import CvBridge
@@ -17,6 +17,9 @@ import cv2
 import copy
 from pynput import keyboard
 import sys
+from ekf_pos import location_ekf
+ekf = location_ekf()
+USE_EKF = True
 
 ### if we draw global nav to vertify our gps module and data 
 # img = Image.open('map.png')
@@ -128,12 +131,15 @@ class RealDataSaver:
         print("data collector initializing...")
         self.global_img = []
         self.global_nav = []
-        self.global_time = []
+        self.global_time = 0
+        self.global_time_last = 0
+        self.last_t_imu = 0
         self.global_scan = []
         self.global_pos = [0, 0, 0] # x, y, yaw
         self.global_vel = [0, 0, 0] # x, y, angle_vel
         self.global_acc = [0, 0, 0] #x, y
         self.global_gps = [0, 0] #lat, lon
+        self.gps_yaw = 0
         self.time = 0
         self.gps_right_down = GPSItem(right_down_gps["x"], right_down_gps["y"])
         self.gps_left_up = GPSItem(left_up_gps["x"], left_up_gps["y"])
@@ -151,6 +157,8 @@ class RealDataSaver:
         self.acc_file = open(save_path+'state/acc.txt', 'w+')
         self.angular_vel_file = open(save_path+'state/angular_vel.txt', 'w+')
         self.gps_file = open(save_path+'state/gps.txt', 'w+')
+        if USE_EKF:
+            self.ekf_file = open(save_path+'state/ekf.txt', 'w+')
         self.cnt_close = 0
         self.saving = False
         self.gps_flag = False
@@ -171,6 +179,9 @@ class RealDataSaver:
         self.vel_file.close()
         self.acc_file.close()
         self.angular_vel_file.close()
+        self.gps_file.close()
+        if USE_EKF:
+            self.ekf_file.close()
         cv2.destroyAllWindows()
 
     def close(self, key = ' '):
@@ -180,6 +191,9 @@ class RealDataSaver:
             self.vel_file.close()
             self.acc_file.close()
             self.angular_vel_file.close()
+            self.gps_file.close()
+            if USE_EKF:
+                self.ekf_file.close()
             cv2.destroyAllWindows()
             rospy.signal_shutdown("ros node closed")
             sys.exit()
@@ -215,12 +229,19 @@ class RealDataSaver:
                     str(self.global_acc[1])+'\t'+'\n')
         self.angular_vel_file.write(index+'\t'+
                     str(self.global_vel[2])+'\t'+'\n')
+        if USE_EKF:
+            self.ekf_file.write(index+'\t'+
+                        str(self.global_ekf[0])+'\t'+
+                        str(self.global_ekf[1])+'\t'+'\n')
         # print("### data saved ###")
         self.saving = False
         self.img_flag = False
         self.state_flag = False
         self.lidar_flag = False
         self.gps_flag = False
+    
+    def save_imu(self, data):
+        self.imu_file
 
     def check(self):
         if self.img_flag and self.state_flag and self.lidar_flag and self.gps_flag:
@@ -271,6 +292,7 @@ class RealDataSaver:
         self.global_nav = img
 
     def get_time(self, data):
+        self.global_time_last = self.global_time
         self.global_time = float(data.header.stamp.secs) + float(data.header.stamp.nsecs)/1000000000
 
     def gps_callback(self, data):
@@ -282,8 +304,24 @@ class RealDataSaver:
         global_x, global_y = gps.gps2xy_ellipse() # world coordinate
         dx = global_x - self.global_pos[0]
         dy = global_y - self.global_pos[1]
-        global_yaw = math.atan2(dy, dx)
-        self.global_pos = [global_x, global_y, global_yaw]
+
+        if self.global_time_last == 0:
+            v = 0
+        else:
+            v = math.sqrt(dx**2 + dy**2) / (self.global_time - self.global_time_last)
+        
+        gps_yaw = math.atan2(dy, dx)
+
+        if USE_EKF and not ekf.init_flag and self.global_pos != [0,0,0] and v > 0.05:
+            ekf.init(global_x, global_y, self.gps_yaw, v)
+        
+        if USE_EKF and ekf.init_flag:
+            ekf.update([global_x, global_y, gps_yaw])
+            self.global_ekf = ekf.get_state()[:3]
+        else:
+            self.global_ekf = [global_x, global_y, gps_yaw]
+
+        self.global_pos = [global_x, global_y, gps_yaw]
         self.get_time(data)
         # self.get_nav(gps)
         self.global_gps = [data.longitude, data.latitude]
@@ -319,12 +357,30 @@ class RealDataSaver:
         # print("img_callback")
         self.global_img = self.bridge.imgmsg_to_cv2(data, "bgr8")
         self.check()
+    
+    def get_time_imu(self, data):
+        return float(data.header.stamp.secs) + float(data.header.stamp.nsecs)/1000000000
+    
+    def imu_callback(self, data):
+        # merge with gps data
+        if not USE_EKF:
+            return
         
+        t = self.get_time_imu(data)
+        self.save_data(t, [data.angular_velocity.z, data.linear_acceleration.x])
+        if self.last_t_imu == 0:
+            self.last_t_imu = t
+            return
+        dt = t - self.last_t_imu
+        self.last_t_imu = t
+        ekf.predict([data.angular_velocity.z, data.linear_acceleration.x], dt)
+
     def listener(self):
         rospy.init_node('listener', anonymous=True)
         rospy.Subscriber("jzhw/gps/fix", GPSFix, self.gps_callback)
         rospy.Subscriber("camera/color/image_raw", Img, self.img_callback)
         rospy.Subscriber("os_cloud_node/points",PointCloud2, self.lidar_callback)
+        rospy.Subscriber("os_cloud_node/imu",Imu, self.imu_callback)
         rospy.Subscriber("scout_status",ScoutStatus, self.status_callback)
         key_listener = keyboard.Listener(on_press=self.close)
         key_listener.start()
@@ -341,4 +397,4 @@ if __name__ == '__main__':
     # p4 = GPSItem(right_up_gps["x"], right_up_gps["y"])
     # print(p1.dis(p3) + p3.dis(p2) + p2.dis(p4) + p4.dis(p1))
     
-    RealDataSaver("../data/")
+    RealDataSaver("../data5/")
