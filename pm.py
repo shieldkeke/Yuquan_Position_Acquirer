@@ -255,14 +255,28 @@ def getPM(traj):
     # img = cv2.blur(img, (5,5))
     # img = cv2.resize(img, (width, height), interpolation=cv2.INTER_CUBIC)
     return img
-
+# check if the img is valid
+def check(img):
+    height = img.shape[0]
+    width = img.shape[1]
+    total = height * width
+    # check whole pic
+    if np.sum(img)/255 < total * 0.2:
+        return False
+    if np.sum(img)/255 > total * 0.8:
+        return False
+    # check bottom of the pic
+    lines = 20
+    if np.sum(img[-lines:, :])/255 < width * 0.2 * lines:
+        return False
+    return True
 def mkdir(path):
     os.makedirs(path, exist_ok=True)
 
 if __name__ == '__main__':
     # width_new=400
     # height_new=200
-    save_path="../data1/"
+    save_path="../data3/"
     file_path = save_path + "state/pos.txt"
     t, traj = open_pos(file_path)
     mkdir(save_path + "pm")
@@ -277,5 +291,6 @@ if __name__ == '__main__':
         path = world2car(path[0], path[1:])
         path = data_augmentation(path)
         img = getPM(path)
-        # img = cv2.resize(img, (width_new, height_new))
-        cv2.imwrite(save_path + 'pm/'+ t[i] + '.png', img)
+        if check(img):
+            # img = cv2.resize(img, (width_new, height_new))
+            cv2.imwrite(save_path + 'pm/'+ t[i] + '.png', img)
