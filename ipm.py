@@ -5,9 +5,6 @@ import numpy as np
 import os
 from tqdm import tqdm
 
-width = 1280
-height = 720
-
 fx = 711.642238
 fy = 711.302135
 s = 0.0
