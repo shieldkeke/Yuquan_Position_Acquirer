@@ -10,7 +10,7 @@ import copy
 from tqdm import tqdm
 
 ### if we draw global nav to vertify our gps module and data
-img = Image.open('../map.png')
+img = Image.open('map.png')
 fig, ax = plt.subplots()
 line, = ax.plot([], [])  # empty line
 point, = ax.plot([], [], 'bo')
@@ -123,8 +123,8 @@ class RealDataSaver:
         self.gps_right_down = GPSItem(right_down_gps["x"], right_down_gps["y"])
         self.gps_left_up = GPSItem(left_up_gps["x"], left_up_gps["y"])
         self.save_path = save_path
-        self.nav = Image.open('../navigation.png')
-        self.map = Image.open('../map.png')
+        self.nav = Image.open('navigation.png')
+        self.map = Image.open('map.png')
         self.cnt_close = 0
         self.global_pos = [0, 0, 0]
 
@@ -176,7 +176,7 @@ class RealDataSaver:
         # we ensure the height of the picture equals to 20 meters ()i n the real world
         # but we arbitrary scaled the width (use coefficient k)of the picture for rationality of nav pic
         k = 0.8
-        y_offset = 40
+        y_offset = 0
 
         img = img.crop(box=(
         center_x - pic_cut_range * k, center_y - pic_cut_range - y_offset, center_x + pic_cut_range * k,
@@ -212,7 +212,13 @@ if __name__ == '__main__':
     saver = RealDataSaver()
     traj = open_file("C:/Users/13910/Desktop/Yuquan_Position_Acquirer-master/gps.txt")
     j = 0
+    plt.imshow(img)
     for i in tqdm(traj):
         img = saver.gps_callback(i)
         img.save("C:/Users/13910/Desktop/Yuquan_Position_Acquirer-master/nav_img/"+str(j)+".png")
         j = j+1
+    #     saver.draw_nav(i)
+    # new_fig, new_ax = plt.subplots(figsize=(img.width / 100, img.height / 100))  # make it proportional divided by 100 because Large numbers are not valid
+    # new_ax.set(xlim=[0, img.width], ylim=[img.height, 0])
+    # plt.plot(xs, ys)
+    # plt.show()
