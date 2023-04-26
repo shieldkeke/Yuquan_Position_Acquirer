@@ -117,7 +117,7 @@ class GPSItem:
 
 class RealDataSaver:
 
-    def __init__(self, save_path="C:/Users/13910/Desktop/Yuquan_Position_Acquirer-master/gyzt_try") -> None:
+    def __init__(self, save_path) -> None:
         self.global_nav = []
 
         self.gps_right_down = GPSItem(right_down_gps["x"], right_down_gps["y"])
@@ -204,21 +204,21 @@ def open_file(path):
             break
         line = line.split()
         t = GPSItem(eval(line[1]), eval(line[2]))
-        traj.append(t)
-    return traj
+        traj.append((line[0],t))
+    return  traj
 
 if __name__ == '__main__':
     # test for GPS module
-    saver = RealDataSaver()
-    traj = open_file("C:/Users/13910/Desktop/Yuquan_Position_Acquirer-master/gps.txt")
-    j = 0
+    path = ""
+    saver = RealDataSaver(path)
+    traj = open_file(path+"gps.txt")
     plt.imshow(img)
-    for i in tqdm(traj):
-        img = saver.gps_callback(i)
-        img.save("C:/Users/13910/Desktop/Yuquan_Position_Acquirer-master/nav_img/"+str(j)+".png")
-        j = j+1
-    #     saver.draw_nav(i)
-    # new_fig, new_ax = plt.subplots(figsize=(img.width / 100, img.height / 100))  # make it proportional divided by 100 because Large numbers are not valid
-    # new_ax.set(xlim=[0, img.width], ylim=[img.height, 0])
-    # plt.plot(xs, ys)
-    # plt.show()
+    for item in tqdm(traj):
+        # img = saver.gps_callback(item[1])
+        # img.save(path+"nav/"+item[0]+".png")
+        saver.draw_nav(item[1])
+    new_fig, new_ax = plt.subplots(figsize=(img.width / 100, img.height / 100))  # make it proportional divided by 100 because Large numbers are not valid
+    new_ax.set(xlim=[0, img.width], ylim=[img.height, 0])
+    plt.plot(xs, ys)
+    plt.show()
+

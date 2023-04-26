@@ -1,5 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+
+##### 
+
+## all the width and height are inverted --CYK
+
+#####
 import cv2
 import numpy as np
 import os
@@ -98,17 +104,64 @@ def inverse_perspective_mapping(data):
     img = cv2.erode(img, kernel, iterations=1)
     return img
 
+def read_pcd(save_path, time_stamp):
+    # .npy file
+    pcd = np.load(save_path + "pcd/" + time_stamp + ".npy")
+    return pcd
+
+def get_cost_map(img, pcd):
+    my_height = width
+    my_width = height
+    img_pcd = np.zeros((my_height,my_width, 1), np.uint8)
+    img_pcd.fill(255)
+    pixs_per_meter = my_height/25.0
+
+    u = (my_height-pcd[:,0]*pixs_per_meter).astype(int)
+    v = (-pcd[:,1]*pixs_per_meter+my_width//2).astype(int)
+    z = pcd[:,2]
+
+    mask = np.where((z < 2)&(z>0.2))[0]
+    u = u[mask]
+    v = v[mask]
+    
+    mask = np.where((u >= 0)&(u < my_height))[0]
+    u = u[mask]
+    v = v[mask]
+    
+    mask = np.where((v >= 0)&(v < my_width))[0]
+    u = u[mask]
+    v = v[mask]
+    
+    img_pcd[u,v] = 0
+    kernel = np.ones((17,17),np.uint8)  
+    img_pcd = cv2.erode(img_pcd,kernel,iterations = 1)
+    
+    kernel_size = (3, 3)
+    img = cv2.dilate(img,kernel_size,iterations = 3)
+    
+    img = cv2.addWeighted(img,0.5,img_pcd,0.5,0)
+    
+    # mask = np.where((img_pcd < 50))
+    # u = mask[0]
+    # v = mask[1]
+    # img[u, v] = 0
+
+    return img
+
 
 def mkdir(path):
     os.makedirs(path, exist_ok=True)
 
 
 if __name__ == '__main__':
-    save_path = "C:/Users/13910/Desktop/Yuquan_Position_Acquirer-master/"
+    save_path = save_path="../data1/"
     files = os.listdir(save_path + "pm")
 
     mkdir(save_path + "ipm")
     for f in tqdm(files):
         input_img = cv2.imread(save_path + "pm/" + f)
-        img = inverse_perspective_mapping(input_img)
+        ipm_img = inverse_perspective_mapping(input_img)
+        time_stamp = f[:-4]
+        pcd = read_pcd(save_path, time_stamp)
+        img = get_cost_map(ipm_img, pcd)
         cv2.imwrite(save_path + 'ipm/' + f[:-4] + '.png', img)
