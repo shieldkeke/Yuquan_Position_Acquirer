@@ -4,7 +4,6 @@ import os
 from filters import KalmanFilter, KalmanFilter_W
 import scipy.signal
 from tqdm import tqdm
-from debugger import Debugger
 # filter
 global filter, filter_mode, filter_w, last_yaw
 NOFILTER = 0
@@ -281,7 +280,6 @@ if __name__ == '__main__':
     t, traj = open_pos(file_path)
     mkdir(save_path + "pm")
     mkdir(save_path + "debug")
-    de = Debugger(save_path + "debug/" + "pm_debug.txt")
     # for i in range(len(t)):
     # with tqdm
     for i in tqdm(range(len(t))):

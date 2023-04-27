@@ -51,7 +51,7 @@ class LineDrawer:
             self.line.figure.canvas.draw()
 
     def write_to_file(self):
-        file=open('gps_data.csv',mode='w')
+        file=open('data/gps_data.csv',mode='w')
         for point in self.GPS_Points:
             file.write(f'{point[0]} {point[1]}\n')
         file.close()
@@ -63,14 +63,14 @@ class LineDrawer:
 
     def draw_navigation(self):
         plt.clf()
-        map = Image.open('map.png')
+        map = Image.open('data/map.png')
         k = 1 # for more thin lines(seem to be useless)
         new_fig, new_ax = plt.subplots(figsize=(map.width/100,map.height/100)) #make it proportional divided by 100 because Large numbers are not valid
         new_ax.set(xlim=[0, map.width * k], ylim=[map.height * k, 0]) 
         plt.axis('off')
 
         new_ax.plot([x*k for x in self.xs], [y*k for y in self.ys], color='red', linewidth=1)
-        plt.savefig('navigation.png', bbox_inches='tight', pad_inches=0, dpi=500)# for the high quality of picture
+        plt.savefig('data/navigation.png', bbox_inches='tight', pad_inches=0, dpi=500)# for the high quality of picture
         print("navigation saved successfully!")
 
     def __call__(self, event):
@@ -97,7 +97,7 @@ class LineDrawer:
 
 
 if __name__ == "__main__":
-    img = Image.open('map.png')
+    img = Image.open('data/map.png')
     fig, ax = plt.subplots()
     l = LineDrawer(ax)
     plt.imshow(img, animated= True)

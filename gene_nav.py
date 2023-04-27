@@ -10,10 +10,7 @@ import copy
 from tqdm import tqdm
 
 ### if we draw global nav to vertify our gps module and data
-img = Image.open('map.png')
-fig, ax = plt.subplots()
-line, = ax.plot([], [])  # empty line
-point, = ax.plot([], [], 'bo')
+img = Image.open('data/map.png')
 
 xs = []
 ys = []
@@ -123,8 +120,8 @@ class RealDataSaver:
         self.gps_right_down = GPSItem(right_down_gps["x"], right_down_gps["y"])
         self.gps_left_up = GPSItem(left_up_gps["x"], left_up_gps["y"])
         self.save_path = save_path
-        self.nav = Image.open('navigation.png')
-        self.map = Image.open('map.png')
+        self.nav = Image.open('data/navigation.png')
+        self.map = Image.open('data/map.png')
         self.cnt_close = 0
         self.global_pos = [0, 0, 0]
 
@@ -147,8 +144,8 @@ class RealDataSaver:
                 "y"])
         xs.append(center_x)
         ys.append(center_y)
-        line.set_data(xs, ys)
-        line.figure.canvas.draw()
+        # line.set_data(xs, ys)
+        # line.figure.canvas.draw()
 
     def get_nav(self, gps):
         x_gps, y_gps = gps.gps2xy_ellipse()
@@ -185,13 +182,17 @@ class RealDataSaver:
         self.global_nav = img
         return img
 
-    def gps_callback(self, gps):
+    def gps_callback(self, gps, ekf_yaw=-10):
         # self.draw_nav(gps)
         global_x, global_y = gps.gps2xy_ellipse() # world coordinate
         dx = global_x - self.global_pos[0]
         dy = global_y - self.global_pos[1]
         global_yaw = math.atan2(dy, dx)
-        self.global_pos = [global_x, global_y, global_yaw]
+        if ekf_yaw <= -10:
+            self.global_pos = [global_x, global_y, global_yaw]
+        else:
+            self.global_pos = [global_x, global_y, ekf_yaw]
+
         img = self.get_nav(gps)
         return img
 
@@ -207,18 +208,36 @@ def open_file(path):
         traj.append((line[0],t))
     return  traj
 
+def open_ekf(path):
+    pos_file = open(path, "r")
+    traj = []
+    while True:
+        line = pos_file.readline()
+        if not line:
+            break
+        line = line.split()
+        traj.append(eval(line[-1]))
+    return traj
+
 if __name__ == '__main__':
     # test for GPS module
-    path = ""
+    path = "data/"
     saver = RealDataSaver(path)
     traj = open_file(path+"gps.txt")
-    plt.imshow(img)
-    for item in tqdm(traj):
-        # img = saver.gps_callback(item[1])
-        # img.save(path+"nav/"+item[0]+".png")
-        saver.draw_nav(item[1])
-    new_fig, new_ax = plt.subplots(figsize=(img.width / 100, img.height / 100))  # make it proportional divided by 100 because Large numbers are not valid
-    new_ax.set(xlim=[0, img.width], ylim=[img.height, 0])
-    plt.plot(xs, ys)
-    plt.show()
+    yaw = open_ekf(path+"ekf.txt")
 
+    show_or_save = 0 # 1 is save, 0 is show
+
+    if show_or_save:
+        for i in tqdm(range(len(traj))):
+            img = saver.gps_callback(traj[i][1], yaw[i])
+            img.save(path+"nav/"+traj[i][0]+".png")
+    else:
+        for i in tqdm(range(len(traj))):
+            saver.draw_nav(traj[i][1])
+        new_fig, new_ax = plt.subplots(figsize=(img.width / 100, img.height / 100))  # make it proportional divided by 100 because Large numbers are not valid
+        new_ax.set(xlim=[0, img.width], ylim=[img.height, 0])
+        plt.imshow(img)
+        plt.axis('off')
+        new_ax.plot([x for x in xs], [y for y in ys], color='red', linewidth=1)
+        plt.show()
